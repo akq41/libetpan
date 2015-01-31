@@ -166,6 +166,30 @@ int mailpop3_get_msg_info(mailpop3 * f, unsigned int indx,
   return MAILPOP3_NO_ERROR;
 }
 
+// @@@wenmiao new add
+int mailpop3_get_msg_info2(mailpop3 * f, unsigned int indx,
+			   struct mailpop3_msg_info ** result)
+{
+  carray * tab;
+  struct mailpop3_msg_info * info;
+  int r;
+
+  r = mailpop3_list(f, &tab);
+  if (r != MAILPOP3_NO_ERROR)
+	return r;
+  
+  if (tab == NULL)
+    return MAILPOP3_ERROR_BAD_STATE;
+
+  info = mailpop3_msg_info_tab_find_msg(tab, indx);
+  if (info == NULL)
+    return MAILPOP3_ERROR_NO_SUCH_MESSAGE;
+
+  * result = info;
+
+  return MAILPOP3_NO_ERROR;
+}
+
 
 /*
   mailpop3_capa
