@@ -85,6 +85,9 @@ LIBETPAN_EXPORT
 int mailpop3_list(mailpop3 * f, carray ** result);
 
 LIBETPAN_EXPORT
+int mailpop3_list2(mailpop3 * f, unsigned int index, carray ** result);
+
+LIBETPAN_EXPORT
 int mailpop3_retr(mailpop3 * f, unsigned int indx, char ** result,
 		  size_t * result_len);
 
@@ -111,6 +114,11 @@ void mailpop3_retr_free(char * str);
 LIBETPAN_EXPORT
 int mailpop3_get_msg_info(mailpop3 * f, unsigned int indx,
 			   struct mailpop3_msg_info ** result);
+
+// get only one info from server
+LIBETPAN_EXPORT
+int mailpop3_get_msg_info2(mailpop3 * f, unsigned int indx,
+                           struct mailpop3_msg_info ** result);
 
 LIBETPAN_EXPORT
 int mailpop3_capa(mailpop3 * f, clist ** result);

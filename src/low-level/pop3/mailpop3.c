@@ -167,21 +167,21 @@ int mailpop3_get_msg_info(mailpop3 * f, unsigned int indx,
 }
 
 // @@@wenmiao new add
-int mailpop3_get_msg_info2(mailpop3 * f, unsigned int indx,
+int mailpop3_get_msg_info2(mailpop3 * f, unsigned int index,
 			   struct mailpop3_msg_info ** result)
 {
   carray * tab;
   struct mailpop3_msg_info * info;
   int r;
 
-  r = mailpop3_list(f, &tab);
+  r = mailpop3_list2(f, index, &tab);
   if (r != MAILPOP3_NO_ERROR)
 	return r;
   
   if (tab == NULL)
     return MAILPOP3_ERROR_BAD_STATE;
 
-  info = mailpop3_msg_info_tab_find_msg(tab, indx);
+  info = mailpop3_msg_info_tab_find_msg(tab, 1);
   if (info == NULL)
     return MAILPOP3_ERROR_NO_SUCH_MESSAGE;
 
@@ -646,6 +646,39 @@ static int mailpop3_do_uidl(mailpop3 * f, carray * msg_tab)
   return MAILPOP3_NO_ERROR;
 }
 
+// @@@wenmiao
+static int mailpop3_do_uidl2(mailpop3 * f, unsigned int index, carray * msg_tab)
+{
+  char command[POP3_STRING_SIZE];
+  int r;
+  char * response;
+  
+  if (f->pop3_state != POP3_STATE_TRANSACTION)
+    return MAILPOP3_ERROR_BAD_STATE;
+  
+  /* send list command */
+  
+  snprintf(command, POP3_STRING_SIZE, "UIDL %u\r\n", index);
+  r = send_command(f, command);
+  if (r == -1)
+    return MAILPOP3_ERROR_STREAM;
+  
+  response = read_line(f);
+  if (response == NULL)
+    return MAILPOP3_ERROR_STREAM;
+  r = parse_response(f, response);
+  
+  if (r != RESPONSE_OK)
+    return MAILPOP3_ERROR_CANT_LIST;
+  
+  r = read_uidl(f, msg_tab);
+  if (r != MAILPOP3_NO_ERROR)
+    return r;
+  
+  return MAILPOP3_NO_ERROR;
+}
+
+
 
 
 static int mailpop3_do_list(mailpop3 * f)
@@ -690,6 +723,49 @@ static int mailpop3_do_list(mailpop3 * f)
   return MAILPOP3_NO_ERROR;
 }
 
+// @@@wenmiao
+static int mailpop3_do_list2(mailpop3 * f, unsigned int index)
+{
+  char command[POP3_STRING_SIZE];
+  int r;
+  carray * msg_tab;
+  char * response;
+  
+  if (f->pop3_msg_tab != NULL) {
+    mailpop3_msg_info_tab_free(f->pop3_msg_tab);
+    f->pop3_msg_tab = NULL;
+  }
+  
+  if (f->pop3_state != POP3_STATE_TRANSACTION)
+    return MAILPOP3_ERROR_BAD_STATE;
+  
+  /* send list command */
+  
+  snprintf(command, POP3_STRING_SIZE, "LIST %u\r\n", index);
+  r = send_command(f, command);
+  if (r == -1)
+    return MAILPOP3_ERROR_STREAM;
+  
+  response = read_line(f);
+  if (response == NULL)
+    return MAILPOP3_ERROR_STREAM;
+  r = parse_response(f, response);
+  
+  if (r != RESPONSE_OK)
+    return MAILPOP3_ERROR_CANT_LIST;
+  
+  r = read_list(f, &msg_tab);
+  if (r != MAILPOP3_NO_ERROR)
+    return r;
+  
+  f->pop3_msg_tab = msg_tab;
+  f->pop3_deleted_count = 0;
+  
+  mailpop3_do_uidl2(f, index, msg_tab);
+  
+  return MAILPOP3_NO_ERROR;
+}
+
 
 
 static int mailpop3_list_if_needed(mailpop3 * f)
@@ -707,6 +783,19 @@ int mailpop3_list(mailpop3 * f, carray ** result)
 {
   int r;
   r = mailpop3_list_if_needed(f);
+  if (r == MAILPOP3_NO_ERROR)
+    * result = f->pop3_msg_tab;
+  return r;
+}
+
+// @@@wenmiao
+int mailpop3_list2(mailpop3 * f, unsigned int index, carray ** result)
+{
+  int r;
+  
+  if (f->pop3_msg_tab == NULL)
+    r =  mailpop3_do_list2(f, index);
+
   if (r == MAILPOP3_NO_ERROR)
     * result = f->pop3_msg_tab;
   return r;
